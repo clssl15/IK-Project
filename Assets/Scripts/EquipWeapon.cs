@@ -22,10 +22,16 @@ public class EquipWeapon : MonoBehaviour
     [SerializeField]
     private Transform leftHandTarget;
 
+    [Header("Smooth Settings")]
+    [SerializeField]
+    private float smoothSpeed = 10f;
+
     private StarterAssetsInputs _input;
     private Animator playerAnimator;
 
     private Weapon _currentWeapon;
+
+    private Transform _targetTransform;
 
     private void Start()
     {
@@ -37,44 +43,64 @@ public class EquipWeapon : MonoBehaviour
     {
         if (_currentWeapon == null) return;
 
-        Transform newPos = default;
+        _targetTransform = _input.aim ? aimingPos : equipPos;
+        UpdateAimingState(_input.aim);
+        
+        // 무기 위치 갱신
+        SmoothUpdateWeaponTransform();
 
-        if (_input.aim)
-        {
-            switch (_currentWeapon.Type)
-            {
-                case WeaponType.pistol:
-                    playerAnimator.SetBool("PistolAim", true);
-                    newPos = aimingPos;
-                    break;
-
-                case WeaponType.assault:
-                    playerAnimator.SetBool("AssaultAim", true);
-                    newPos = aimingPos;
-                    break;
-            }
-
-            leftHandIK.weight = 1f;
-        }
-        else if (!_input.aim)
-        {
-            switch (_currentWeapon.Type)
-            {
-                case WeaponType.pistol:
-                    playerAnimator.SetBool("PistolAim", false);
-                    newPos = equipPos;
-                    break;
-                case WeaponType.assault:
-                    newPos = equipPos;
-                    playerAnimator.SetBool("AssaultAim", false);
-                    break;
-            }
-
-            leftHandIK.weight = 0f;
-        }
-
-        SetWeaponPos(newPos);
+        // IK 갱신
+        leftHandIK.weight = _input.aim ? 1f : 0f;
         SetIKPos();
+    }
+
+    /// <summary>
+    /// 기존 SetWeaponPos 대신 이 함수를 사용
+    /// 부드러운 전환을 위함
+    /// </summary>
+    private void SmoothUpdateWeaponTransform()
+    {
+        if (_targetTransform == null) return;
+
+        if (_currentWeapon.transform.parent != _targetTransform)
+        {
+            _currentWeapon.transform.SetParent(_targetTransform);
+        }
+
+        _currentWeapon.transform.position = Vector3.Lerp(
+            _currentWeapon.transform.position,
+            _targetTransform.position,
+            Time.deltaTime * smoothSpeed
+        );
+
+        _currentWeapon.transform.rotation = Quaternion.Slerp(
+            _currentWeapon.transform.rotation,
+            _targetTransform.rotation,
+            Time.deltaTime * smoothSpeed
+        );
+    }
+
+    /// <summary>
+    /// 무기 위치를 바꿔주는 함수
+    /// </summary>
+    /// <param name="newPos"></param>
+    void SetWeaponPos(Transform newPos)
+    {
+        _currentWeapon.transform.SetParent(newPos.transform);
+        _currentWeapon.transform.position = newPos.position;
+        _currentWeapon.transform.rotation = newPos.rotation;
+    }
+    private void UpdateAimingState(bool isAiming)
+    {
+        switch (_currentWeapon.Type)
+        {
+            case WeaponType.pistol:
+                playerAnimator.SetBool("PistolAim", isAiming);
+                break;
+            case WeaponType.assault:
+                playerAnimator.SetBool("AssaultAim", isAiming);
+                break;
+        }
     }
 
     private void OnTriggerStay(Collider other)
@@ -103,13 +129,6 @@ public class EquipWeapon : MonoBehaviour
         rightHandIK.weight = 1f;
 
         playerAnimator.SetBool("HasWeapon", true);
-    }
-
-    void SetWeaponPos(Transform newPos)
-    {
-        _currentWeapon.transform.SetParent(newPos.transform);
-        _currentWeapon.transform.position = newPos.position;
-        _currentWeapon.transform.rotation = newPos.rotation;
     }
 
     void SetIKPos()
