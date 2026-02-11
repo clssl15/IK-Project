@@ -369,6 +369,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _type: 5
+  fireRate: 0.1
   _rightHandPos: {fileID: 0}
   _leftHandPos: {fileID: 0}
 --- !u!65 &511718020
@@ -410,6 +411,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _type: 4
+  fireRate: 0.1
   _rightHandPos: {fileID: 0}
   _leftHandPos: {fileID: 0}
 --- !u!65 &518151056
@@ -1532,10 +1534,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   equipPos: {fileID: 69502383}
   aimingPos: {fileID: 1207396786}
+  firePos: {fileID: 1639507737}
   rightHandIK: {fileID: 961266315}
   rightHandTarget: {fileID: 1136403150}
   leftHandIK: {fileID: 1823186921}
   leftHandTarget: {fileID: 341836419}
+  toAimSpeed: 10
+  toFireSpeed: 100
+  recoilDuration: 0.02
 --- !u!1 &1293695028
 GameObject:
   m_ObjectHideFlags: 0
@@ -1622,6 +1628,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8338988566280778637, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
   m_PrefabInstance: {fileID: 479914793}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1639507736
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1639507737}
+  m_Layer: 8
+  m_Name: Pistol Fire Pos
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1639507737
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1639507736}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.29429057, y: 0, z: 0, w: 0.9557161}
+  m_LocalPosition: {x: 0, y: 1.44, z: 0.514}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1838781237}
+  m_LocalEulerAnglesHint: {x: -34.23, y: 0, z: 0}
 --- !u!4 &1677350730 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3671558514868781766, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
@@ -1892,6 +1929,7 @@ Transform:
   m_Children:
   - {fileID: 69502383}
   - {fileID: 1207396786}
+  - {fileID: 1639507737}
   m_Father: {fileID: 1242815717}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1865537825 stripped
@@ -1922,6 +1960,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _type: 3
+  fireRate: 0.1
   _rightHandPos: {fileID: 0}
   _leftHandPos: {fileID: 0}
 --- !u!65 &1925295971
@@ -1963,6 +2002,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _type: 2
+  fireRate: 0.5
   _rightHandPos: {fileID: 1293695029}
   _leftHandPos: {fileID: 1702157462}
 --- !u!65 &1925516827

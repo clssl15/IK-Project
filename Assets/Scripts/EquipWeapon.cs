@@ -9,6 +9,8 @@ public class EquipWeapon : MonoBehaviour
     private Transform equipPos;
     [SerializeField]
     private Transform aimingPos;
+    [SerializeField]
+    private Transform firePos;
 
     [Header("Right Hand Target")]
     [SerializeField]
@@ -24,7 +26,11 @@ public class EquipWeapon : MonoBehaviour
 
     [Header("Smooth Settings")]
     [SerializeField]
-    private float smoothSpeed = 10f;
+    private float toAimSpeed = 10f;
+    [SerializeField]
+    private float toFireSpeed = 40f;
+    [SerializeField]
+    private float recoilDuration = 0.1f; // 반동 상태 유지 시간
 
     private StarterAssetsInputs _input;
     private Animator playerAnimator;
@@ -32,6 +38,8 @@ public class EquipWeapon : MonoBehaviour
     private Weapon _currentWeapon;
 
     private Transform _targetTransform;
+
+    private float _currentRecoilTimer = 0f; // 현재 남은 반동 시간
 
     private void Start()
     {
@@ -43,11 +51,29 @@ public class EquipWeapon : MonoBehaviour
     {
         if (_currentWeapon == null) return;
 
-        _targetTransform = _input.aim ? aimingPos : equipPos;
+        if (_input.fire && _input.aim && _currentWeapon.TryShoot())
+        {
+            _currentRecoilTimer = recoilDuration;
+        }
+
+        float smoothSpeed = default;
+        if (_currentRecoilTimer > 0)
+        {
+            _targetTransform = firePos;
+            smoothSpeed = toFireSpeed;
+
+            _currentRecoilTimer -= Time.deltaTime;
+        }
+        else
+        {
+            _targetTransform = _input.aim ? aimingPos : equipPos;
+            smoothSpeed = toAimSpeed;
+        }
+
         UpdateAimingState(_input.aim);
-        
+
         // 무기 위치 갱신
-        SmoothUpdateWeaponTransform();
+        SmoothUpdateWeaponTransform(smoothSpeed);
 
         // IK 갱신
         leftHandIK.weight = _input.aim ? 1f : 0f;
@@ -58,7 +84,7 @@ public class EquipWeapon : MonoBehaviour
     /// 기존 SetWeaponPos 대신 이 함수를 사용
     /// 부드러운 전환을 위함
     /// </summary>
-    private void SmoothUpdateWeaponTransform()
+    private void SmoothUpdateWeaponTransform(float speed)
     {
         if (_targetTransform == null) return;
 
@@ -70,13 +96,13 @@ public class EquipWeapon : MonoBehaviour
         _currentWeapon.transform.position = Vector3.Lerp(
             _currentWeapon.transform.position,
             _targetTransform.position,
-            Time.deltaTime * smoothSpeed
+            Time.deltaTime * speed
         );
 
         _currentWeapon.transform.rotation = Quaternion.Slerp(
             _currentWeapon.transform.rotation,
             _targetTransform.rotation,
-            Time.deltaTime * smoothSpeed
+            Time.deltaTime * speed
         );
     }
 
