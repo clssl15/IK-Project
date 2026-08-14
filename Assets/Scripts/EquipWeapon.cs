@@ -1,9 +1,15 @@
+using System.Collections.Generic;
 using UnityEngine;
 using StarterAssets;
 using UnityEngine.Animations.Rigging;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 public class EquipWeapon : MonoBehaviour
 {
+    private const int MaxWeapons = 2;
+
     [Header("Pistol Weapon Transform Settings")]
     [SerializeField]
     private Transform equipPos;
@@ -46,10 +52,17 @@ public class EquipWeapon : MonoBehaviour
     [SerializeField]
     private float assaultRecoilDuration = 0.045f;
 
+    [Header("Switch Settings")]
+    [SerializeField]
+    private float switchCooldown = 0.2f;
+
     private StarterAssetsInputs _input;
     private Animator playerAnimator;
 
     private Weapon _currentWeapon;
+    private readonly List<Weapon> _ownedWeapons = new List<Weapon>(MaxWeapons);
+    private int _currentIndex = -1;
+    private float _switchCooldownTimer;
 
     // 현재 장착한 무기 타입에 맞춰 선택된 위치 세트
     private Transform _equipPos;
@@ -70,6 +83,8 @@ public class EquipWeapon : MonoBehaviour
 
     private void Update()
     {
+        HandleWeaponSwitch();
+
         if (_currentWeapon == null) return;
 
         if (_input.fire && _input.aim && _currentWeapon.TryShoot())
@@ -139,15 +154,24 @@ public class EquipWeapon : MonoBehaviour
     }
     private void UpdateAimingState(bool isAiming)
     {
-        switch (_currentWeapon.Type)
+        bool pistolAim = false;
+        bool assaultAim = false;
+
+        if (isAiming && _currentWeapon != null)
         {
-            case WeaponType.pistol:
-                playerAnimator.SetBool("PistolAim", isAiming);
-                break;
-            case WeaponType.assault:
-                playerAnimator.SetBool("AssaultAim", isAiming);
-                break;
+            switch (_currentWeapon.Type)
+            {
+                case WeaponType.pistol:
+                    pistolAim = true;
+                    break;
+                case WeaponType.assault:
+                    assaultAim = true;
+                    break;
+            }
         }
+
+        playerAnimator.SetBool("PistolAim", pistolAim);
+        playerAnimator.SetBool("AssaultAim", assaultAim);
     }
 
     private void OnTriggerStay(Collider other)
@@ -164,21 +188,114 @@ public class EquipWeapon : MonoBehaviour
 
     void Equip(Weapon weapon)
     {
-        if (_currentWeapon != null)
+        if (weapon == null) return;
+        if (_ownedWeapons.Contains(weapon)) return;
+
+        // 슬롯이 가득 차면 현재 들고 있는 무기만 버리고 새 무기로 교체
+        if (_ownedWeapons.Count >= MaxWeapons)
         {
-            // 현재 장착중인 무기 떨어트리기
-            _currentWeapon.transform.parent = null;
-            _currentWeapon.transform.position = transform.position + transform.forward;
+            DropCurrentWeapon();
+        }
+        else if (_currentWeapon != null)
+        {
+            HolsterWeapon(_currentWeapon);
         }
 
-        _currentWeapon = weapon;
+        _ownedWeapons.Add(weapon);
+        _currentIndex = _ownedWeapons.Count - 1;
+        ActivateWeapon(weapon);
+    }
 
-        // 무기 타입에 맞는 위치 세트 선택
+    private void HandleWeaponSwitch()
+    {
+        if (_switchCooldownTimer > 0f)
+        {
+            _switchCooldownTimer -= Time.deltaTime;
+            return;
+        }
+
+        if (_ownedWeapons.Count < 2) return;
+
+        float scroll = ReadScrollDelta();
+        if (Mathf.Abs(scroll) < 0.1f) return;
+
+        int nextIndex = 1 - _currentIndex;
+        SwitchToIndex(nextIndex);
+        _switchCooldownTimer = switchCooldown;
+    }
+
+    private static float ReadScrollDelta()
+    {
+#if ENABLE_INPUT_SYSTEM
+        if (Mouse.current != null)
+        {
+            return Mouse.current.scroll.ReadValue().y;
+        }
+#endif
+        return Input.GetAxis("Mouse ScrollWheel");
+    }
+
+    private void SwitchToIndex(int index)
+    {
+        if (index < 0 || index >= _ownedWeapons.Count) return;
+        if (index == _currentIndex) return;
+
+        HolsterWeapon(_currentWeapon);
+        _currentIndex = index;
+        ActivateWeapon(_ownedWeapons[_currentIndex]);
+    }
+
+    private void ActivateWeapon(Weapon weapon)
+    {
+        _currentWeapon = weapon;
+        _currentWeapon.gameObject.SetActive(true);
+        SetPickupEnabled(_currentWeapon, false);
+
         SelectWeaponPositions(_currentWeapon.Type);
 
-        rightHandIK.weight = 1f;
+        Transform spawnPos = (_input != null && _input.aim && _aimingPos != null)
+            ? _aimingPos
+            : _equipPos;
 
+        _currentWeapon.transform.SetParent(spawnPos);
+        _currentWeapon.transform.SetPositionAndRotation(spawnPos.position, spawnPos.rotation);
+
+        _targetTransform = spawnPos;
+        _currentRecoilTimer = 0f;
+
+        rightHandIK.weight = 1f;
         playerAnimator.SetBool("HasWeapon", true);
+    }
+
+    private void HolsterWeapon(Weapon weapon)
+    {
+        if (weapon == null) return;
+
+        weapon.transform.SetParent(transform);
+        weapon.gameObject.SetActive(false);
+    }
+
+    private void DropCurrentWeapon()
+    {
+        if (_currentWeapon == null) return;
+
+        SetPickupEnabled(_currentWeapon, true);
+        _currentWeapon.transform.SetParent(null);
+        _currentWeapon.transform.position = transform.position + transform.forward;
+        _currentWeapon.gameObject.SetActive(true);
+
+        _ownedWeapons.Remove(_currentWeapon);
+        _currentWeapon = null;
+        _currentIndex = _ownedWeapons.Count > 0 ? _ownedWeapons.Count - 1 : -1;
+    }
+
+    private static void SetPickupEnabled(Weapon weapon, bool enabled)
+    {
+        var colliders = weapon.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            colliders[i].enabled = enabled;
+        }
     }
 
     /// <summary>
