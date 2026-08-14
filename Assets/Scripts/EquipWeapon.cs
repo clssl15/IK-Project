@@ -4,13 +4,21 @@ using UnityEngine.Animations.Rigging;
 
 public class EquipWeapon : MonoBehaviour
 {
-    [Header("Current Weapon Transform Settings")]
+    [Header("Pistol Weapon Transform Settings")]
     [SerializeField]
     private Transform equipPos;
     [SerializeField]
     private Transform aimingPos;
     [SerializeField]
     private Transform firePos;
+
+    [Header("Assault Weapon Transform Settings")]
+    [SerializeField]
+    private Transform assaultEquipPos;
+    [SerializeField]
+    private Transform assaultAimingPos;
+    [SerializeField]
+    private Transform assaultFirePos;
 
     [Header("Right Hand Target")]
     [SerializeField]
@@ -24,7 +32,7 @@ public class EquipWeapon : MonoBehaviour
     [SerializeField]
     private Transform leftHandTarget;
 
-    [Header("Smooth Settings")]
+    [Header("Pistol Smooth Settings")]
     [SerializeField]
     private float toAimSpeed = 10f;
     [SerializeField]
@@ -32,10 +40,23 @@ public class EquipWeapon : MonoBehaviour
     [SerializeField]
     private float recoilDuration = 0.1f; // 반동 상태 유지 시간
 
+    [Header("Assault Recoil Settings")]
+    [SerializeField]
+    private float assaultToFireSpeed = 35f;
+    [SerializeField]
+    private float assaultRecoilDuration = 0.045f;
+
     private StarterAssetsInputs _input;
     private Animator playerAnimator;
 
     private Weapon _currentWeapon;
+
+    // 현재 장착한 무기 타입에 맞춰 선택된 위치 세트
+    private Transform _equipPos;
+    private Transform _aimingPos;
+    private Transform _firePos;
+    private float _toFireSpeed;
+    private float _recoilDuration;
 
     private Transform _targetTransform;
 
@@ -53,20 +74,20 @@ public class EquipWeapon : MonoBehaviour
 
         if (_input.fire && _input.aim && _currentWeapon.TryShoot())
         {
-            _currentRecoilTimer = recoilDuration;
+            _currentRecoilTimer = _recoilDuration;
         }
 
         float smoothSpeed = default;
         if (_currentRecoilTimer > 0)
         {
-            _targetTransform = firePos;
-            smoothSpeed = toFireSpeed;
+            _targetTransform = _firePos;
+            smoothSpeed = _toFireSpeed;
 
             _currentRecoilTimer -= Time.deltaTime;
         }
         else
         {
-            _targetTransform = _input.aim ? aimingPos : equipPos;
+            _targetTransform = _input.aim ? _aimingPos : _equipPos;
             smoothSpeed = toAimSpeed;
         }
 
@@ -152,17 +173,51 @@ public class EquipWeapon : MonoBehaviour
 
         _currentWeapon = weapon;
 
+        // 무기 타입에 맞는 위치 세트 선택
+        SelectWeaponPositions(_currentWeapon.Type);
+
         rightHandIK.weight = 1f;
 
         playerAnimator.SetBool("HasWeapon", true);
     }
 
+    /// <summary>
+    /// 무기 타입에 따라 장착/조준/사격 위치 세트를 고른다.
+    /// </summary>
+    private void SelectWeaponPositions(WeaponType type)
+    {
+        switch (type)
+        {
+            case WeaponType.assault:
+                _equipPos = assaultEquipPos;
+                _aimingPos = assaultAimingPos;
+                _firePos = assaultFirePos;
+                _toFireSpeed = assaultToFireSpeed;
+                _recoilDuration = assaultRecoilDuration;
+                break;
+            default: // pistol 및 기타
+                _equipPos = equipPos;
+                _aimingPos = aimingPos;
+                _firePos = firePos;
+                _toFireSpeed = toFireSpeed;
+                _recoilDuration = recoilDuration;
+                break;
+        }
+    }
+
     void SetIKPos()
     {
-        rightHandTarget.position = _currentWeapon.RightHandPos.position;
-        rightHandTarget.rotation = _currentWeapon.RightHandPos.rotation;
+        // 손 위치가 지정되지 않은 무기는 IK 갱신을 건너뛴다 (null 참조 방지)
+        if (_currentWeapon.RightHandPos != null)
+        {
+            rightHandTarget.position = _currentWeapon.RightHandPos.position;
+            rightHandTarget.rotation = _currentWeapon.RightHandPos.rotation;
+        }
 
-        leftHandTarget.position = _currentWeapon.LeftHandPos.position;
-        leftHandTarget.rotation = _currentWeapon.LeftHandPos.rotation;
+        if (_currentWeapon.LeftHandPos != null)
+        {
+            leftHandTarget.position = _currentWeapon.LeftHandPos.position;
+            leftHandTarget.rotation = _currentWeapon.LeftHandPos.rotation;
+        }
     }
 }
